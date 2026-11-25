@@ -1,1 +1,1 @@
-{"versionCode":16,"notes":"Navegacion mejorada: menu fijo, filas alineadas sin cortes, Atras sube el foco al menu en vez de cerrar, y al volver de una ficha el foco regresa a la misma tarjeta."}
+{"versionCode":18,"notes":"Mejora del buscador de actualizaciones: reintenta y avisa si falla."}
