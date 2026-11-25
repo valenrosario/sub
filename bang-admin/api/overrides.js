@@ -3,7 +3,8 @@ const { auth } = require('./_lib');
 const REPO = () => process.env.GH_REPO || 'valenrosario/sub';
 const PATH = () => process.env.GH_PATH || 'bang/overrides.json';
 const api = () => `https://api.github.com/repos/${REPO()}/contents/${PATH()}`;
-const headers = () => ({
+const headers = () => ({ // GH_TOKEN vacio => error claro
+
   Authorization: 'Bearer ' + process.env.GH_TOKEN,
   Accept: 'application/vnd.github+json',
   'User-Agent': 'bang-admin',
@@ -12,7 +13,7 @@ const headers = () => ({
 async function current() {
   const r = await fetch(api() + '?ref=main', { headers: headers() });
   if (r.status === 404) return { data: { version: 1, items: {} }, sha: null };
-  if (!r.ok) throw new Error('GitHub respondio ' + r.status);
+  if (!r.ok) throw new Error('GitHub respondio ' + r.status + (r.status === 401 || r.status === 403 || r.status === 404 ? ' (revisa GH_TOKEN: debe tener acceso al repo sub con Contents: Read and write)' : ''));
   const j = await r.json();
   return { data: JSON.parse(Buffer.from(j.content, 'base64').toString('utf8')), sha: j.sha };
 }
