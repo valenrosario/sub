@@ -111,7 +111,7 @@ async function call(url,opt={}){
 const tmdb=(path,p={})=>call('/api/tmdb?'+new URLSearchParams({path,language:'es-MX',...p}));
 
 async function enter(){
-  try{DATA=await call('/api/overrides');DATA.items=DATA.items||{};DATA._in=1;$('#login').style.display='none';$('#app').style.display='block';renderMine();landing()}
+  try{DATA=await call('/api/overrides');DATA.items=DATA.items||{};DATA.featured=DATA.featured||[];DATA._in=1;$('#login').style.display='none';$('#app').style.display='block';renderMine();landing()}
   catch(e){toast(e.message,'er',6000)}
 }
 $('#lf').onsubmit=e=>{e.preventDefault();KEY=$('#pw').value;sessionStorage.setItem('k',KEY);enter()};
@@ -135,9 +135,13 @@ const skel=n=>`<div class="grid">${'<div class="sk"></div>'.repeat(n)}</div>`;
 const card=(x,i)=>`<div class="res" style="animation-delay:${Math.min(i,20)*25}ms" data-t="${x.media_type}" data-i="${x.id}"><img src="${x.poster_path?IMG+'w342'+x.poster_path:''}" loading="lazy" alt=""><div>${esc(x.title||x.name)}<small>${esc((x.release_date||x.first_air_date||'').slice(0,4))} · ${x.media_type==='tv'?'Serie':'Película'}</small></div></div>`;
 function bindCards(){$$('.res').forEach(el=>el.onclick=()=>{if(guard())open_(el.dataset.t,+el.dataset.i)})}
 
+const isFeat=()=>(DATA.featured||[]).some(f=>f.key===S.k);
+function featHTML(){const F=DATA.featured||[];return `<div class="panel" style="margin-bottom:26px"><h2 class="t">Destacados del inicio (banner de la TV)</h2>`+(F.length?`<div class="row" style="display:flex;gap:14px;flex-wrap:wrap">${F.map((f,i)=>`<div style="width:150px"><div class="res" data-t="${f.type}" data-i="${f.tmdbId}" style="animation:none"><img src="${esc(f.poster||'')}" alt=""><div>${esc(f.name)}</div></div><div style="display:flex;gap:6px;margin-top:6px"><button data-fm="${i}:-1" style="flex:1;padding:6px">←</button><button data-fm="${i}:1" style="flex:1;padding:6px">→</button><button class="dng" data-fm="${i}:x" style="flex:1;padding:6px">✕</button></div></div>`).join('')}</div>`:`<p class="muted" style="margin:0">Sin elegir: el banner usa lo que más mirás y lo mejor calificado. Abrí un título y tocá “Destacar en el inicio”. Solo aparecen los que existen en tus plugins.</p>`)+`</div>`}
+function bindFeat(){bindCards();$$('[data-fm]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const[i,m]=b.dataset.fm.split(':'),F=DATA.featured,n=+i;if(m==='x')F.splice(n,1);else{const j=n+ +m;if(j<0||j>=F.length)return;[F[n],F[j]]=[F[j],F[n]]}try{await persist();toast('Destacados actualizados ✓','ok');landing()}catch(er){toast('Error: '+er.message,'er',6000)}})}
+async function toggleFeat(){keep();const F=DATA.featured=DATA.featured||[],i=F.findIndex(f=>f.key===S.k);if(i>=0)F.splice(i,1);else{if(F.length>=8){toast('Máximo 8 destacados','er');return}const o=build();F.push({key:S.k,tmdbId:S.id,type:S.type,imdbId:S.imdbId,name:S.name,year:S.year,keys:o.keys,poster:S.d.poster_path?IMG+'w185'+S.d.poster_path:''})}try{await persist();toast(i>=0?'Quitado de destacados':'Destacado ✓ aparece en el banner de la TV','ok',4000);$('#feat').textContent=isFeat()?'★ Quitar de destacados':'☆ Destacar en el inicio'}catch(e){toast('Error: '+e.message,'er',6000)}}
 async function landing(){
   S=null;setDirty(false);
-  $('#view').innerHTML=`<h3>Hola 👋</h3><p class="muted" style="margin:0 0 22px">Elegí un título, cambiale póster, fondo, logo, nombre o episodios y mirá en vivo cómo queda. Se aplica solo en la app de TV, encima de lo que traen tus plugins.</p><h2 class="t">Tendencias de la semana</h2>${skel(12)}`;
+  $('#view').innerHTML=`<h3>Hola 👋</h3><p class="muted" style="margin:0 0 22px">Elegí un título, cambiale póster, fondo, logo, nombre o episodios y mirá en vivo cómo queda. Se aplica solo en la app de TV, encima de lo que traen tus plugins.</p>${featHTML()}<h2 class="t">Tendencias de la semana</h2>${skel(12)}`;bindFeat();
   try{const r=await tmdb('/trending/all/week');const l=(r.results||[]).filter(x=>x.media_type==='movie'||x.media_type==='tv');
     if(!S)$('#view').querySelector('.grid').outerHTML=`<div class="grid">${l.map(card).join('')}</div>`;bindCards()}catch(e){}
 }
@@ -178,10 +182,10 @@ function render(){
   const cnt={poster:(im.posters||[]).length,backdrop:(im.backdrops||[]).length,logo:(im.logos||[]).length};
   let h=`<div class="bar" style="margin-top:0"><div><h3>${esc(S.name)}</h3><span class="chip">${type==='tv'?'Serie':'Película'}</span><span class="muted">${esc(S.year)}${S.imdbId?' · '+esc(S.imdbId):''}</span></div></div>
   <div id="heroBox">${heroHTML()}</div>
-  <div class="bar"><div class="tabs">${tabs.map(t=>`<button class="${tab===t?'on':''}" data-tab="${t}">${TABS[t]}${cnt[t]!=null?`<i>${cnt[t]}</i>`:''}</button>`).join('')}</div><span style="flex:1"></span>${DATA.items[S.k]?'<button class="dng" id="del">Quitar todos mis cambios</button>':''}</div><div id="body"></div>`;
+  <div class="bar"><div class="tabs">${tabs.map(t=>`<button class="${tab===t?'on':''}" data-tab="${t}">${TABS[t]}${cnt[t]!=null?`<i>${cnt[t]}</i>`:''}</button>`).join('')}</div><span style="flex:1"></span><button id="feat">${isFeat()?'★ Quitar de destacados':'☆ Destacar en el inicio'}</button>${DATA.items[S.k]?'<button class="dng" id="del">Quitar todos mis cambios</button>':''}</div><div id="body"></div>`;
   $('#view').innerHTML=h;
   $$('[data-tab]').forEach(b=>b.onclick=()=>{keep();tab=b.dataset.tab;render()});
-  if($('#del'))$('#del').onclick=del;
+  if($('#del'))$('#del').onclick=del;$('#feat').onclick=toggleFeat;
   body();
 }
 function refreshHero(){$('#heroBox').innerHTML=heroHTML()}
@@ -233,7 +237,7 @@ async function pickStill(s,e){
 function setStill(s,e,u){const k=s+'x'+e;(S.draft.episodes[k]=S.draft.episodes[k]||{}).still=u;clean(k);setDirty(true);$('#modal').style.display='none';loadSeason(s)}
 $('#mc').onclick=()=>$('#modal').style.display='none';
 
-async function persist(){await call('/api/overrides',{method:'POST',body:JSON.stringify({items:Object.fromEntries(Object.entries(DATA.items))})});renderMine()}
+async function persist(){await call('/api/overrides',{method:'POST',body:JSON.stringify({items:DATA.items,featured:DATA.featured||[]})});renderMine()}
 function build(){
   const D=S.draft,al=String(D.aliases||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean);
   const names=[S.name,S.orig,...al],ys=[S.year,''];

@@ -28,7 +28,8 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       const data = req.body;
       if (!data || typeof data !== 'object' || typeof data.items !== 'object') return res.status(400).json({ error: 'Formato invalido' });
-      const text = JSON.stringify({ version: 1, items: data.items }, null, 1);
+      const feat = Array.isArray(data.featured) ? data.featured.slice(0, 8) : [];
+      const text = JSON.stringify({ version: 1, items: data.items, featured: feat }, null, 1);
       if (text.length > 900000) return res.status(413).json({ error: 'Demasiado grande' });
       const { sha } = await current();
       const r = await fetch(api(), {
