@@ -1,24 +1,5 @@
 {
  "version": 1,
- "items": {
-  "tv:46260": {
-   "tmdbId": 46260,
-   "type": "tv",
-   "imdbId": "tt0409591",
-   "name": "Naruto",
-   "year": "2002",
-   "keys": [
-    "naruto|2002",
-    "naruto|"
-   ],
-   "aliases": "",
-   "poster": "https://image.tmdb.org/t/p/w500/oOkvQ1anSMvdYbUGGf7NAnfwHUt.jpg",
-   "backdrop": "https://image.tmdb.org/t/p/w1280/mpsYIytXhDXjI9yYC1Fp1S3PxsS.jpg",
-   "logo": "",
-   "title": "",
-   "synopsis": "",
-   "episodes": {}
-  }
- },
+ "items": {},
  "featured": []
 }
