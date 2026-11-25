@@ -1,1 +1,1 @@
-{"versionCode":27,"notes":"• Instalación automática de actualizaciones\n• Catálogo más fluido: la tarjeta abierta se desliza\n• Banner tipo slider con imágenes de TMDB\n• Carga del plugin mucho más rápida\n• Logos más prolijos"}
+{"versionCode":28,"notes":"• Tarjeta fija: al moverte ya aparece abierta la siguiente\n• Al bajar siempre arranca desde el primer título\n• Sin imágenes de relleno que cambiaban solas\n• Banner: botón blanco, info solo con ícono, indicadores sutiles\n• Lupita de búsqueda junto a Inicio"}
