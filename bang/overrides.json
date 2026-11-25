@@ -18,6 +18,28 @@
    "title": "",
    "synopsis": "",
    "episodes": {}
+  },
+  "tv:4406": {
+   "tmdbId": 4406,
+   "type": "tv",
+   "imdbId": "tt0362153",
+   "name": "The Simple Life",
+   "year": "2003",
+   "keys": [
+    "the simple life|2003",
+    "the simple life|"
+   ],
+   "aliases": "",
+   "poster": "https://image.tmdb.org/t/p/w500/sOxy1jW67noPeB8z3ed2Rpexban.jpg",
+   "backdrop": "https://image.tmdb.org/t/p/w1280/m357fauYYitZnjKp5CGLcayCVra.jpg",
+   "logo": "https://image.tmdb.org/t/p/w500/nnfvpo9ODKVnVQDeIb0cVZ7CwBF.png",
+   "title": "",
+   "synopsis": "",
+   "episodes": {
+    "1x1": {
+     "still": "https://image.tmdb.org/t/p/w300/5ZDoUlaTeUO1tptbmnHlKz5psLn.jpg"
+    }
+   }
   }
  }
 }
