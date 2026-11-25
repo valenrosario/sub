@@ -2,6 +2,7 @@ const { auth } = require('./_lib');
 // Proxy de TMDB: la clave de TMDB queda en el servidor y nunca llega al navegador.
 const ALLOW = [
   /^\/search\/multi$/,
+  /^\/trending\/all\/week$/,
   /^\/(movie|tv)\/\d+$/,
   /^\/(movie|tv)\/\d+\/images$/,
   /^\/(movie|tv)\/\d+\/external_ids$/,
