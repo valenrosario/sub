@@ -1,1 +1,1 @@
-{"versionCode":31,"notes":"• Ficha: sin capítulos de otra serie ni capítulos falsos en películas\n• Imágenes y logos fijos de TMDB al entrar\n• Solo botón para volver atrás, logo más grande\n• Leve difuminado abajo en el inicio"}
+{"versionCode":32,"notes":"• No se reproduce nada hasta que apretás Reproducir\n• Al volver atrás quedás donde estabas, sin pantalla negra\n• Movimiento más prolijo al mantener apretado el control\n• Capítulos tomados del plugin: siempre los que se pueden ver"}
