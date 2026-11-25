@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bang · Panel</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#050a18;color:#e8edf7;font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+h1{font-size:20px;margin:0;color:#ff6b00;letter-spacing:-.03em}
+button,input,textarea,select{font:inherit}
+button{background:#ff6b00;color:#fff;border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer}
+button.sec{background:rgba(255,255,255,.1)}button.danger{background:#7a1f2b}button:disabled{opacity:.5;cursor:default}
+input,textarea,select{background:#0b1530;border:1px solid rgba(147,197,253,.25);color:#fff;border-radius:10px;padding:10px 12px;outline:none;width:100%}
+input:focus,textarea:focus{border-color:#ff6b00}
+header{display:flex;gap:14px;align-items:center;padding:12px 20px;border-bottom:1px solid rgba(147,197,253,.12);position:sticky;top:0;background:#050a18;z-index:5}
+header form{flex:1;max-width:520px}
+main{display:grid;grid-template-columns:260px 1fr;gap:20px;padding:20px;max-width:1500px;margin:0 auto}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+.card{background:#0b1530;border:1px solid rgba(147,197,253,.15);border-radius:16px;padding:14px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#ff8533;margin:0 0 10px}
+.mine{display:flex;gap:10px;align-items:center;padding:6px;border-radius:10px;cursor:pointer}.mine:hover{background:rgba(255,255,255,.07)}
+.mine img{width:38px;height:56px;object-fit:cover;border-radius:6px;background:#111a35}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.res{cursor:pointer;border-radius:12px;overflow:hidden;background:#0b1530;border:2px solid transparent}.res:hover{border-color:#ff6b00}
+.res img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:#111a35}.res div{padding:8px;font-size:13px}
+.res small,.muted{color:#94a3b8}
+.tabs{display:flex;gap:8px;margin:14px 0}.tabs button{background:rgba(255,255,255,.08)}.tabs button.on{background:#ff6b00}
+.pick{cursor:pointer;border:3px solid transparent;border-radius:10px;overflow:hidden;background:#111a35}.pick.sel{border-color:#ff6b00}.pick img{width:100%;display:block}
+.pick.bd img{aspect-ratio:16/9;object-fit:cover}.pick.lg{background:#222b4a;padding:8px}.pick.lg img{aspect-ratio:3/1;object-fit:contain}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.top{display:flex;gap:16px;flex-wrap:wrap}
+.cur{width:110px}.cur img{width:100%;border-radius:8px;background:#111a35;min-height:60px;display:block}
+.ep{display:grid;grid-template-columns:130px 1fr auto;gap:12px;align-items:center;padding:8px 0;border-top:1px solid rgba(147,197,253,.1)}.ep img{width:130px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#111a35}
+#msg{position:fixed;right:18px;bottom:18px;background:#ff6b00;padding:10px 16px;border-radius:12px;font-weight:700;display:none;z-index:20}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;z-index:15;overflow:auto;padding:30px}#modal .card{max-width:1000px;margin:0 auto}
+#login{max-width:340px;margin:18vh auto;text-align:center}
+</style>
+</head>
+<body>
+<div id="login" class="card"><h1>Bang · Panel</h1><p class="muted">Ingresá la clave de administrador</p>
+<form id="lf"><input id="pw" type="password" placeholder="Clave" autofocus><p></p><button style="width:100%">Entrar</button></form></div>
+<div id="app" style="display:none">
+<header><h1>BANG · Panel</h1>
+<form id="sf"><input id="q" placeholder="Buscar película o serie en TMDB…"></form>
+<button class="sec" id="out">Salir</button></header>
+<main><aside class="card"><h2>Mis cambios</h2><div id="mine"></div></aside><section id="view"></section></main>
+</div>
+<div id="modal"><div class="card"><div class="row" style="justify-content:space-between"><h2 id="mt">Elegir imagen</h2><button class="sec" id="mc">Cerrar</button></div><div id="mg" class="grid"></div></div></div>
+<div id="msg"></div>
+<script>
+const IMG='https://image.tmdb.org/t/p/';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nk=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+let KEY=sessionStorage.getItem('k')||'',DATA={version:1,items:{}},S=null,tab='poster',lang='all';
+
+function toast(t,ms=2500){const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>m.style.display='none',ms)}
+async function call(url,opt={}){
+  const r=await fetch(url,{...opt,headers:{'x-admin-key':KEY,'Content-Type':'application/json'}});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401){sessionStorage.removeItem('k');location.reload()}
+  if(!r.ok)throw new Error(j.error||('Error '+r.status));
+  return j;
+}
+const tmdb=(path,p={})=>call('/api/tmdb?'+new URLSearchParams({path,language:'es-MX',...p}));
+
+async function enter(){
+  try{DATA=await call('/api/overrides');DATA.items=DATA.items||{};$('#login').style.display='none';$('#app').style.display='block';renderMine()}
+  catch(e){sessionStorage.removeItem('k');toast(e.message)}
+}
+$('#lf').onsubmit=e=>{e.preventDefault();KEY=$('#pw').value;sessionStorage.setItem('k',KEY);enter()};
+$('#out').onclick=()=>{sessionStorage.removeItem('k');location.reload()};
+if(KEY)enter();
+
+function renderMine(){
+  const it=Object.entries(DATA.items);
+  $('#mine').innerHTML=it.length?it.map(([k,o])=>`<div class="mine" data-k="${esc(k)}"><img src="${esc(o.poster||'')}" onerror="this.style.visibility='hidden'"><div>${esc(o.name||k)}<br><small class="muted">${esc(o.year||'')}</small></div></div>`).join(''):'<span class="muted">Todavía no cambiaste nada.</span>';
+  document.querySelectorAll('.mine').forEach(el=>el.onclick=()=>{const o=DATA.items[el.dataset.k];open_(o.type,o.tmdbId)});
+}
+
+$('#sf').onsubmit=async e=>{
+  e.preventDefault();const q=$('#q').value.trim();if(!q)return;
+  $('#view').innerHTML='<p class="muted">Buscando…</p>';
+  try{
+    const r=await tmdb('/search/multi',{query:q});
+    const list=(r.results||[]).filter(x=>x.media_type==='movie'||x.media_type==='tv');
+    $('#view').innerHTML=list.length?`<div class="grid">${list.map(x=>`<div class="res" data-t="${x.media_type}" data-i="${x.id}"><img src="${x.poster_path?IMG+'w342'+x.poster_path:''}" loading="lazy"><div>${esc(x.title||x.name)}<br><small>${esc((x.release_date||x.first_air_date||'').slice(0,4))} · ${x.media_type==='tv'?'Serie':'Película'}</small></div></div>`).join('')}</div>`:'<p class="muted">Sin resultados.</p>';
+    document.querySelectorAll('.res').forEach(el=>el.onclick=()=>open_(el.dataset.t,+el.dataset.i));
+  }catch(err){$('#view').innerHTML='<p>'+esc(err.message)+'</p>'}
+};
+
+async function open_(type,id){
+  $('#view').innerHTML='<p class="muted">Cargando…</p>';
+  try{
+    const [d,im,ex]=await Promise.all([
+      tmdb(`/${type}/${id}`),
+      tmdb(`/${type}/${id}/images`,{include_image_language:'es,en,null'}),
+      tmdb(`/${type}/${id}/external_ids`)]);
+    const name=d.title||d.name,orig=d.original_title||d.original_name||name,year=(d.release_date||d.first_air_date||'').slice(0,4);
+    const k=type+':'+id;
+    const base=DATA.items[k]||{};
+    S={k,type,id,d,im,tmdbTitle:name,seasons:(d.seasons||[]).filter(s=>s.season_number>0),
+      draft:{tmdbId:id,type,imdbId:ex.imdb_id||'',name,year,
+        keys:[...new Set([nk(name)+'|'+year,nk(orig)+'|'+year,nk(name)+'|',nk(orig)+'|'])],
+        poster:'',backdrop:'',logo:'',title:'',synopsis:'',episodes:{},...base}};
+    tab='poster';render();
+  }catch(e){$('#view').innerHTML='<p>'+esc(e.message)+'</p>'}
+}
+
+function langOK(i){return lang==='all'||(lang==='none'?!i.iso_639_1:i.iso_639_1===lang)}
+function render(){
+  const {d,draft,im,type}=S;
+  const set={poster:['posters','w500','w185'],backdrop:['backdrops','w1280','w300'],logo:['logos','w500','w185']};
+  const cur=(k,sz)=>draft[k]?`<div class="cur"><img src="${esc(draft[k])}"><small class="muted">${sz}</small></div>`:`<div class="cur"><div class="muted" style="padding:20px 0">${sz}<br>(el del plugin)</div></div>`;
+  let h=`<div class="card"><div class="top"><div class="row" style="gap:10px;align-items:flex-start">${cur('poster','Póster')}${cur('backdrop','Fondo')}${cur('logo','Logo')}</div>
+  <div style="flex:1;min-width:260px"><h2>${esc(S.tmdbTitle)} <span class="muted">${esc(draft.year)} · ${type==='tv'?'Serie':'Película'}</span></h2>
+  <label class="muted">Título (opcional, reemplaza al que muestra la app)</label><input id="f_title" value="${esc(draft.title)}" placeholder="${esc(S.tmdbTitle)}">
+  <p></p><label class="muted">Sinopsis (opcional)</label><textarea id="f_syn" rows="4" placeholder="${esc(d.overview||'')}">${esc(draft.synopsis)}</textarea>
+  <p class="muted">IMDb interno: ${esc(draft.imdbId||'no disponible')} (se usa solo para reconocer el título en la app)</p></div></div></div>
+  <div class="tabs">${['poster','backdrop','logo'].concat(type==='tv'?['episodios']:[]).map(t=>`<button class="${tab===t?'on':''}" data-tab="${t}">${{poster:'Pósters',backdrop:'Fondos',logo:'Logos',episodios:'Episodios'}[t]}</button>`).join('')}
+  <span style="flex:1"></span><button id="save">Guardar</button>${DATA.items[S.k]?'<button class="danger" id="del">Quitar cambios</button>':''}</div>`;
+  if(tab!=='episodios'){
+    const [arr,big,small]=set[tab];const list=(im[arr]||[]).filter(langOK);
+    h+=`<div class="card"><div class="row" style="margin-bottom:10px"><select id="lang" style="width:auto"><option value="all">Todos los idiomas</option><option value="es">Español</option><option value="en">Inglés</option><option value="none">Sin texto</option></select><button class="sec" id="clr">Usar el del plugin</button><span class="muted">${list.length} imágenes</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(${tab==='poster'?150:tab==='backdrop'?260:200}px,1fr))">${list.map(i=>{const u=IMG+big+i.file_path;return `<div class="pick ${tab==='backdrop'?'bd':tab==='logo'?'lg':''} ${draft[tab]===u?'sel':''}" data-u="${esc(u)}"><img loading="lazy" src="${IMG+small+i.file_path}"></div>`}).join('')||'<span class="muted">No hay imágenes con ese filtro.</span>'}</div></div>`;
+  }else h+=`<div class="card"><div class="row"><select id="season" style="width:auto">${S.seasons.map(s=>`<option value="${s.season_number}" ${S.season==s.season_number?'selected':''}>Temporada ${s.season_number}</option>`).join('')}</select></div><div id="eps" class="muted" style="margin-top:10px">Elegí una temporada.</div></div>`;
+  $('#view').innerHTML=h;
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{keep();tab=b.dataset.tab;render()});
+  $('#save').onclick=save;if($('#del'))$('#del').onclick=del;
+  if(tab!=='episodios'){
+    $('#lang').value=lang;$('#lang').onchange=e=>{keep();lang=e.target.value;render()};
+    $('#clr').onclick=()=>{keep();draft[tab]='';render()};
+    document.querySelectorAll('.pick').forEach(p=>p.onclick=()=>{keep();draft[tab]=p.dataset.u;render()});
+  }else{$('#season').onchange=e=>loadSeason(+e.target.value);loadSeason(S.season||S.seasons[0]?.season_number)}
+}
+function keep(){if($('#f_title')){S.draft.title=$('#f_title').value.trim();S.draft.synopsis=$('#f_syn').value.trim()}}
+
+async function loadSeason(n){
+  if(!n)return;S.season=n;$('#eps').textContent='Cargando…';
+  try{
+    const r=await tmdb(`/tv/${S.id}/season/${n}`);
+    const E=S.draft.episodes;
+    $('#eps').innerHTML=(r.episodes||[]).map(e=>{const k=n+'x'+e.episode_number,o=E[k]||{};const img=o.still||(e.still_path?IMG+'w300'+e.still_path:'');
+      return `<div class="ep"><img src="${esc(img)}" loading="lazy"><div><b>${e.episode_number}.</b> <input data-ek="${k}" value="${esc(o.title||'')}" placeholder="${esc(e.name)}" style="width:calc(100% - 30px)"></div><button class="sec" data-pk="${e.episode_number}">Imagen</button></div>`}).join('')||'<span class="muted">Sin episodios.</span>';
+    document.querySelectorAll('[data-ek]').forEach(i=>i.onchange=()=>{const k=i.dataset.ek;(E[k]=E[k]||{}).title=i.value.trim();clean(k)});
+    document.querySelectorAll('[data-pk]').forEach(b=>b.onclick=()=>pickStill(n,+b.dataset.pk));
+  }catch(e){$('#eps').textContent=e.message}
+}
+function clean(k){const o=S.draft.episodes[k];if(o&&!o.title&&!o.still)delete S.draft.episodes[k]}
+async function pickStill(s,e){
+  $('#mt').textContent=`Imagen del episodio ${s}x${e}`;$('#mg').innerHTML='<span class="muted">Cargando…</span>';$('#modal').style.display='block';
+  try{
+    const r=await tmdb(`/tv/${S.id}/season/${s}/episode/${e}/images`,{include_image_language:'es,en,null'});
+    const st=r.stills||[];
+    $('#mg').style.gridTemplateColumns='repeat(auto-fill,minmax(240px,1fr))';
+    $('#mg').innerHTML=st.map(i=>`<div class="pick bd" data-u="${IMG}w300${i.file_path}"><img src="${IMG}w300${i.file_path}"></div>`).join('')+'<div class="pick" id="noimg" style="padding:20px;text-align:center">Usar la original</div>';
+    document.querySelectorAll('#mg .pick[data-u]').forEach(p=>p.onclick=()=>setStill(s,e,p.dataset.u));
+    $('#noimg').onclick=()=>setStill(s,e,'');
+  }catch(err){$('#mg').textContent=err.message}
+}
+function setStill(s,e,u){const k=s+'x'+e;(S.draft.episodes[k]=S.draft.episodes[k]||{}).still=u;clean(k);$('#modal').style.display='none';loadSeason(s)}
+$('#mc').onclick=()=>$('#modal').style.display='none';
+
+async function persist(){await call('/api/overrides',{method:'POST',body:JSON.stringify({items:DATA.items})});renderMine()}
+async function save(){
+  keep();const o={...S.draft};
+  const empty=!o.poster&&!o.backdrop&&!o.logo&&!o.title&&!o.synopsis&&!Object.keys(o.episodes||{}).length;
+  if(empty){toast('No elegiste nada para cambiar');return}
+  DATA.items[S.k]=o;$('#save').disabled=true;
+  try{await persist();toast('Guardado. La TV lo toma en unos minutos.',4000);render()}
+  catch(e){toast('Error: '+e.message,5000);$('#save').disabled=false}
+}
+async function del(){
+  if(!confirm('¿Quitar todos los cambios de este título?'))return;
+  delete DATA.items[S.k];
+  try{await persist();toast('Cambios quitados');open_(S.type,S.id)}catch(e){toast('Error: '+e.message,5000)}
+}
+</script>
+</body>
+</html>
