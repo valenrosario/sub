@@ -67,6 +67,15 @@ module.exports = async (req, res) => {
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json(out);
     }
+    if (req.query.trending) {
+      const t = await T('/trending/all/week', { language: 'es-MX' });
+      const out = ((t && t.results) || []).filter((x) => (x.media_type === 'tv' || x.media_type === 'movie') && x.poster_path).slice(0, 20).map((x) => ({
+        title: x.name || x.title, type: x.media_type === 'tv' ? 'series' : 'movie', tmdb: x.id,
+        year: String(x.first_air_date || x.release_date || '').slice(0, 4), poster: I + 'w342' + x.poster_path,
+      }));
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+      return res.status(200).json(out);
+    }
     res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
     const m = await safe(req.query);
     return m ? res.status(200).json(m) : res.status(404).json({ error: 'sin resultado' });
