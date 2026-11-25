@@ -5,14 +5,11 @@ const T = async (p, q = {}) => {
   const u = new URL('https://api.themoviedb.org/3' + p);
   for (const [k, v] of Object.entries(q)) u.searchParams.set(k, v);
   const r = await fetch(u, { headers: H() });
+  if (r.status === 429) { await new Promise((z) => setTimeout(z, 700)); return T(p, q); }
   return r.ok ? r.json() : null;
 };
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
-  try {
-    const { id = '', tmdb = '', q = '', year = '', type = 'series' } = req.query;
+async function resolve({ id = '', tmdb = '', q = '', year = '', type = 'series' }) {
     let kind = type === 'movie' ? 'movie' : 'tv', tid = String(tmdb).replace(/\D/g, '');
     if (!tid && /^tt\d+$/.test(id)) {
       const f = await T('/find/' + id, { external_source: 'imdb_id' });
@@ -31,15 +28,15 @@ module.exports = async (req, res) => {
       list.sort((a, b) => score(b) - score(a));
       if (list[0] && score(list[0]) >= 1) { tid = list[0].id; kind = list[0].media_type; }
     }
-    if (!tid) return res.status(404).json({ error: 'sin resultado' });
+    if (!tid) return null;
     const d = await T(`/${kind}/${tid}`, { language: 'es-MX', append_to_response: 'images,external_ids,content_ratings,release_dates', include_image_language: 'es,en,null' });
-    if (!d) return res.status(404).json({ error: 'sin ficha' });
+    if (!d) return null;
     const imgs = d.images || {};
     const pick = (a) => (a || []).slice().sort((x, y) => (y.vote_average || 0) - (x.vote_average || 0));
     const lg = pick(imgs.logos).find((x) => x.iso_639_1 === 'es') || pick(imgs.logos).find((x) => x.iso_639_1 === 'en') || pick(imgs.logos)[0];
     const bd = pick((imgs.backdrops || []).filter((x) => !x.iso_639_1))[0];
     const ps = pick((imgs.posters || []).filter((x) => x.iso_639_1 === 'es'))[0];
-    res.status(200).json({
+    return {
       type: kind === 'tv' ? 'series' : 'movie',
       tmdb: d.id,
       id: (d.external_ids && d.external_ids.imdb_id) || (d.imdb_id) || null,
@@ -53,6 +50,25 @@ module.exports = async (req, res) => {
       genres: (d.genres || []).map((g) => g.name),
       description: d.overview || '',
       imdbRating: d.vote_average ? d.vote_average.toFixed(1) : '',
-    });
+    };
+}
+const safe = (x) => resolve(x).catch(() => null);
+module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'content-type');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  try {
+    if (req.method === 'POST') {
+      // lote: { items: [{q, year, type}] } -> [meta|null] en el mismo orden
+      const b = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
+      const items = (b.items || []).slice(0, 60), out = new Array(items.length).fill(null);
+      let k = 0;
+      await Promise.all(Array.from({ length: 12 }, async () => { while (k < items.length) { const i = k++; out[i] = await safe(items[i]); } }));
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json(out);
+    }
+    res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+    const m = await safe(req.query);
+    return m ? res.status(200).json(m) : res.status(404).json({ error: 'sin resultado' });
   } catch (e) { res.status(502).json({ error: e.message }); }
 };
