@@ -237,7 +237,7 @@ async function persist(){await call('/api/overrides',{method:'POST',body:JSON.st
 function build(){
   const D=S.draft,al=String(D.aliases||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean);
   const names=[S.name,S.orig,...al],ys=[S.year,''];
-  const keys=new Set();names.forEach(n=>{const a=nk(n);if(a)ys.forEach(y=>keys.add(a+'|'+y)),{const c=a.replace(/ \d{4}$/,'');keys.add(c+'|'+S.year);keys.add(c+'|')}});
+  const keys=new Set();names.forEach(n=>{const a=nk(n);if(!a)return;ys.forEach(y=>keys.add(a+'|'+y));const c=a.replace(/ \d{4}$/,'');keys.add(c+'|'+S.year);keys.add(c+'|')});
   return {tmdbId:S.id,type:S.type,imdbId:S.imdbId,name:S.name,year:S.year,keys:[...keys],aliases:D.aliases||'',poster:D.poster,backdrop:D.backdrop,logo:D.logo,title:D.title,synopsis:D.synopsis,episodes:D.episodes};
 }
 async function save(){
